@@ -20,7 +20,6 @@ def ping():
 # CREATE /users
 @app.post("/users/", response_model=dict)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Kiểm tra user đã tồn tại
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
