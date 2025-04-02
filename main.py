@@ -4,10 +4,16 @@ from pydantic import BaseModel
 from app import models, database
 from app.database import get_db
 from app.models import User
-from app.schemas import UserCreate
+from app.schemas import UserCreate, UserLogin
+from app.routers import auth
+from app.core.security import verify_password, create_access_token
+from app.routers import protected
 
 # Khởi tạo FastAPI
 app = FastAPI()
+
+app.include_router(auth.router)
+app.include_router(protected.router)
 
 # Khởi tạo database
 models.Base.metadata.create_all(bind=database.engine)
@@ -67,3 +73,17 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
     db.refresh(user)
 
     return {"message": "User updated successfully!", "user_id": user.id}
+
+# Đăng nhập (login)
+@app.post("/login")
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if not db_user or not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token(data={"sub": db_user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello, World!"}
