@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Security, HTTPException
-from app.routers.auth import oauth2_scheme
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.security import get_current_user
 
 router = APIRouter()
 
 @router.get("/protected-route")
-def protected_route(token: str = Security(oauth2_scheme)):
-     if not token:
-         raise HTTPException(status_code=401, detail="Invalid token")
-     return {"message": "You have access a protected route", "token": token}
+def protected_route(current_user: str = Depends(get_current_user)):
+    return {"message": f"You have access a protected route, user: {current_user}"}

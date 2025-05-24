@@ -6,7 +6,7 @@ from datetime import timedelta
 from app.core.security import create_access_token, verify_password
 from app.database import get_db
 from app.models import User
-from app.schemas import Token
+from app.schemas import Token, UserCreate
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -15,6 +15,20 @@ router = APIRouter()
 
 def get_user(db: Session, username: str):
     return db.query(User).filter(User.email == username).first()
+
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Check if user exist
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered!")
+    # Hash password
+    hashed_password = hashed_password(user.password)
+    # Create new user
+    new_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "User registered successfully!"}
 
 @router.post("/login", response_model=Token, include_in_schema=False)
 def login_for_access_token(

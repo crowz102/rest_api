@@ -41,7 +41,7 @@ def decode_access_token(token: str):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-# Xác thực người dùng
+# Validate user
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
