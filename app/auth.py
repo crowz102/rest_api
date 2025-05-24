@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from dotenv import load_dotenv
 from starlette import status
+from app import router
 
 load_dotenv()
 
@@ -54,3 +55,4 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
 
     return payload["sub"]
+

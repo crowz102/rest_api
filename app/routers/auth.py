@@ -8,6 +8,8 @@ from app.database import get_db
 from app.models import User
 from app.schemas import Token, UserCreate
 from fastapi.security import OAuth2PasswordBearer
+from app.core.security import get_current_user
+from app.core.security import hash_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -16,21 +18,22 @@ router = APIRouter()
 def get_user(db: Session, username: str):
     return db.query(User).filter(User.email == username).first()
 
+@router.post("/register", tags=["auth"])
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user exist
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered!")
     # Hash password
-    hashed_password = hashed_password(user.password)
+    hashed_pwd = hash_password(user.password)
     # Create new user
-    new_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
+    new_user = User(name=user.name, email=user.email, hashed_password=hashed_pwd)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return {"message": "User registered successfully!"}
 
-@router.post("/login", response_model=Token, include_in_schema=False)
+@router.post("/login", response_model=Token, tags=["auth"])
 def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: Session = Depends(get_db)
@@ -51,4 +54,7 @@ def login_for_access_token(
 
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.get("/me")
+def read_current_user(current_user: User = Depends(get_current_user)):
+    return current_user
 
