@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app import models, database
@@ -32,16 +33,13 @@ app.add_middleware(
 # Khởi tạo database
 models.Base.metadata.create_all(bind=database.engine)
 
-# Test
-@app.get("/ping")
-def ping():
-    return {"message": "pong"}
-
 # Rate Limit
-@app.get("/me")
-@limiter.limit("5/minute")
-async def get_me(request: Request):
-    return {"message": "This is your profile."}
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Bạn đã gửi quá nhiều yêu cầu đăng nhập. Vui lòng thử lại sau."}
+    )
 
 # CREATE /users
 @app.post("/users/", response_model=dict)
@@ -94,9 +92,10 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
 
     return {"message": "User updated successfully!", "user_id": user.id}
 
-# Đăng nhập (login)
+# Login with rate limit
 @app.post("/login")
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("3/30seconds")
+async def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
