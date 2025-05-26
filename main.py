@@ -1,19 +1,33 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app import models, database
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserLogin
-from app.routers import auth
+from app.routers import auth, protected
 from app.core.security import verify_password, create_access_token
-from app.routers import protected
+
+limiter = Limiter(key_func=get_remote_address)
 
 # Khởi tạo FastAPI
 app = FastAPI()
 
 app.include_router(auth.router)
 app.include_router(protected.router)
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Khởi tạo database
 models.Base.metadata.create_all(bind=database.engine)
@@ -22,6 +36,12 @@ models.Base.metadata.create_all(bind=database.engine)
 @app.get("/ping")
 def ping():
     return {"message": "pong"}
+
+# Rate Limit
+@app.get("/me")
+@limiter.limit("5/minute")
+async def get_me(request: Request):
+    return {"message": "This is your profile."}
 
 # CREATE /users
 @app.post("/users/", response_model=dict)
