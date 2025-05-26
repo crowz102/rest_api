@@ -10,7 +10,7 @@ from app import models, database
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserLogin
-from app.routers import auth, protected
+from app.routers import auth, protected, chatbot
 from app.core.security import verify_password, create_access_token
 
 limiter = Limiter(key_func=get_remote_address)
@@ -29,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(chatbot.router)
 
 # Khởi tạo database
 models.Base.metadata.create_all(bind=database.engine)
