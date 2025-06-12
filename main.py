@@ -12,6 +12,7 @@ from app.models import User
 from app.schemas import UserCreate, UserLogin
 from app.routers import auth, protected, chatbot
 from app.core.security import verify_password, create_access_token
+from app.routers import chatbot
 
 limiter = Limiter(key_func=get_remote_address)
 
